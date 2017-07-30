@@ -1,0 +1,480 @@
+#!/usr/bin/ksh
+Tmp="/tmp/$$"
+TmpDir="/tmp/dir$$"
+trap 'rm -f "$Tmp" >/dev/null 2>&1' 0
+trap "exit 2" 1 2 3 13 15
+rm $Tmp  >/dev/null 2>&1
+#
+#  ART=`$AWKBIN -v w=ART -F= '{b="";gsub(re,b,$1);gsub(re,b,$2);if ($1==w) {print $2;exit;}}' ~/.mp3`
+#
+setsong(){
+     print "song"
+     print $1
+}
+
+Usage() {
+     print "Usage: mp33 [-e][-t][-l][-j][-f][-s][-b][-c][-g][-h][-k][-w][-x]"
+     print "       -p performer-name"
+     print "       -d album-name"
+     print "       -y year"
+     print "       -t -- sets all tracks to zero"
+     print "       -r -- sets all genres to rock and roll"
+     print "       -j -- sets mp3 cover art to file in /tmp/art.jpg"
+     print " "
+     print "       -h  display usage"
+}
+
+   while getopts "t:d:y:p:a:x:g:krjch1lzu" name
+   do
+     case $name in
+        k) 
+           id3v2 -r "$OPTARG" *.mp3
+           ;;
+        l) 
+           id3v2 -l *.mp3
+           ;;
+        t)
+           id3v2 -1 -T 0 *.mp3
+           id3v2 -2 -T 0 *.mp3
+           ;;
+        p)
+           id3v2 -1 -a "$OPTARG" *.mp3
+           id3v2 -2 -a "$OPTARG" *.mp3
+           print "ART="$OPTARG >> ~/.mp3
+           ;;
+        d)
+           id3v2 -1 -A "$OPTARG" *.mp3
+           id3v2 -2 -A "$OPTARG" *.mp3
+           print "DISK="$OPTARG >> ~/.mp3
+           ;;
+        z)
+           id3v2 -1 -g 8 *.mp3
+           id3v2 -2 -g 8 *.mp3
+           ;;
+        r)
+           id3v2 -1 -g 17 *.mp3
+           id3v2 -2 -g 17 *.mp3
+           ;;
+        g)
+           id3v2 -1 -g $OPTARG *.mp3
+           id3v2 -2 -g $OPTARG *.mp3
+           ;;
+        y)
+           id3v2 -1 -y $OPTARG *.mp3
+           id3v2 -2 -y $OPTARG *.mp3
+           ;;
+        c)
+            id3v2 -s *.mp3
+            id3v2    -r "TCOP" *.mp3
+            id3v2    -r "TXXX" *.mp3
+            id3v2 -1 -r "COMM" *.mp3
+            id3v2 -2 -r "COMM" *.mp3
+            id3v2 -r "COMM" *.mp3
+            id3v2 -r "TPUB" *.mp3
+            id3v2 -r "TPOS" *.mp3
+            id3v2 -r "PRIV" *.mp3
+            id3v2 -r "TENC" *.mp3
+            id3v2 -r "TCOM" *.mp3
+            id3v2 -l *.mp3
+            ;; 
+        1)
+            id3v2 -s *.mp3
+            id3v2 -r "TCOP" *.mp3
+            id3v2 -r "TXXX" *.mp3
+            id3v2 -r "COMM" *.mp3
+            id3v2 -r "TPUB" *.mp3
+            id3v2 -r "TPOS" *.mp3
+            id3v2 -r "PRIV" *.mp3
+            id3v2 -r "TENC" *.mp3
+            id3v2 -r "TCOM" *.mp3
+            find . -name "*.mp3" -type f -print | head -1 | sed "s#^.#$(pwd)#" | awk '{printf("\"%s\"\n",$0)}' | tr '\n' ' ' > $Tmp
+            ARTIST=`cat $Tmp | xargs id3v2 -l | gawk -F : '/^TPE1/ {print $NF}' | sed 's/^[ \t]*//;s/[ \t]*$//'`
+            id3v2 -1 -a "$ARTIST" *.mp3
+            ALBUM=`cat $Tmp | xargs id3v2 -l | gawk -F : '/^TALB/ {print $NF}' | sed 's/^[ \t]*//;s/[ \t]*$//'`
+            id3v2 -1 -A "$ALBUM" *.mp3
+            YEAR=`cat $Tmp | xargs id3v2 -l | gawk -F : '/^TYER/ {print $NF}' | sed 's/^[ \t]*//;s/[ \t]*$//'`
+            id3v2 -1 -y "$YEAR" *.mp3
+            rm -rf $Tmp
+            find . -name "*.mp3" -type f -print | sed "s#^.#$(pwd)#" | awk '{printf("\"%s\"\n",$0)}' | gawk -v fn=$Tmp '
+            { 
+                 print "setsongfromtag2 "  $0 >> fn 
+            }'
+            cp $Tmp /tmp/zed
+            chmod 777 $Tmp
+            $Tmp
+            id3v2 -1 -g 17 *.mp3
+            id3v2 -2 -g 17 *.mp3
+            # SONG=`cat $Tmp | xargs id3v2 -l | gawk -F : '/^TIT2/ {print $NF}' | sed 's/^[ \t]*//;s/[ \t]*$//'`
+            # id3v2 -1 -t "$SONG" *.mp3
+            #id3v2 -l *.mp3
+            ;;
+
+
+        u)
+           rm -rf $Tmp
+           find . -name "*.mp3" -type f -print | sed "s#^.#$(pwd)#" | awk '{printf("\"%s\"\n",$0)}' | gawk -v fn=$Tmp '
+           BEGIN {
+               ddq = "\""
+               d  = "\""
+               sp=" "
+               ct=1
+           }
+           {
+               newfilename = substr($0,1,2) " " substr($0,3)
+               newfilename = $0
+               gsub(/____/, " ", newfilename);
+               gsub(/____/, " ", newfilename);
+               gsub(/__/, " ", newfilename);
+               gsub(/_/, " ", newfilename);
+               gsub(/[_]+[.]/, ".", newfilename);
+               gsub(/[ ]+[.]/, ".", newfilename);
+               gsub(/[ ]+$/, "", newfilename);
+               gsub(/^[ ]+/, "", newfilename);
+               print "mv " dq $0 dq " " dq newfilename dq >> fn
+           }'
+           chmod 777 $Tmp
+           cat $Tmp
+           ;;
+        j)
+           rm -rf $Tmp
+           find . -name "*.mp3" -type f -print | sed "s#^.#$(pwd)#" | awk '{printf("\"%s\"\n",$0)}' | gawk -v fn=$Tmp '
+           { 
+               print "eyeD3 -2 --remove-images " $0 >> fn
+               print "eyeD3 -2 --add-image=/tmp/art.jpg:FRONT_COVER " $0 >> fn
+           }'
+           chmod 777 $Tmp
+           $Tmp
+           rm -rf /tmp/art.jpg
+           ;;
+        a)
+           if [ $OPTARG = "dickstracks" ] ; then 
+                rm -rf $Tmp
+                find . -maxdepth 1 -name "*.mp3" -type f -print  | sed "s#^.#$(pwd)#" | awk '{printf("\"%s\"\n",$0)}' | gawk -v fn=$Tmp '
+                function ltrim(s) { sub(/^ */, "", s); return s }
+                function rtrim(s) { sub(/ *$/, "", s); return s }
+                function trim(s) { return rtrim(ltrim(s)); }
+                BEGIN { ct = 0 }
+                { 
+                     n = split($0,a," ");
+                     n = split(a[1],b,"/");
+                     ct = b[n]
+                     print "id3v2 -1 -T " ct " " $0 >> fn 
+                     print "id3v2 -2 -T " ct " " $0 >> fn 
+                }'
+                cp $Tmp /tmp/zed
+                chmod 777 $Tmp
+                $Tmp
+           fi
+           if [ $OPTARG = "tracks" ] ; then 
+                rm -rf $Tmp
+                find . -maxdepth 1 -name "*.mp3" -type f -print  | sed "s#^.#$(pwd)#" | awk '{printf("\"%s\"\n",$0)}' | gawk -v fn=$Tmp '
+                function ltrim(s) { sub(/^ */, "", s); return s }
+                function rtrim(s) { sub(/ *$/, "", s); return s }
+                function trim(s) { return rtrim(ltrim(s)); }
+                BEGIN { ct = 0 }
+                { 
+                     ct = ct + 1
+                     sct = sprintf("%03d",ct)
+                     print "id3v2 -1 -T " sct " " $0 >> fn 
+                     print "id3v2 -2 -T " sct " " $0 >> fn 
+                }'
+                cp $Tmp /tmp/zed
+                chmod 777 $Tmp
+                $Tmp
+           fi
+           if [ $OPTARG = "nametag" ] ; then 
+                rm -rf $Tmp
+                find . -maxdepth 1 -name "*.mp3" -type f -print  | sed "s#^.#$(pwd)#" | awk '{printf("\"%s\"\n",$0)}' | gawk -v fn=$Tmp '
+                function ltrim(s) { sub(/^ */, "", s); return s }
+                function rtrim(s) { sub(/ *$/, "", s); return s }
+                function trim(s) { return rtrim(ltrim(s)); }
+                { 
+                     n=split($0,a,"/");
+                     sz = a[n];
+                     szDisk = a[n-1];
+                     szArtist = a[n-2];
+                     sub(/^[0-9][0-9][0-9] [-] /,"", sz)
+                     sub(/^[0-9][0-9] [-] /,"", sz)
+                     sub(/^[0-9] [-] /,"", sz)
+                     sub(/^[0-9]/,"", sz)
+                     sub(/^[0-9]/,"", sz)
+                     sub(/^[ ]*/,"", sz)
+                     sub(/^[.]*/,"", sz)
+                     sub(/[.]mp3/,"", sz)
+                     sz=trim(sz);
+                     print "id3v2 -1 -A \"" szDisk  "\" "  $0 >> fn 
+                     print "id3v2 -2 -A \"" szDisk  "\" "  $0 >> fn 
+                     print "id3v2 -1 -a \"" szArtist  "\" "  $0 >> fn 
+                     print "id3v2 -2 -a \"" szArtist  "\" "  $0 >> fn 
+                     print "id3v2 -1 -t \"" sz  " "  $0 >> fn 
+                     print "id3v2 -2 -t \"" sz  " "  $0 >> fn 
+                }'
+                cp $Tmp /tmp/zed
+                chmod 777 $Tmp
+                $Tmp
+           fi
+           if [ $OPTARG = "zist" ] ; then 
+                rm -rf $Tmp
+                touch $Tmp
+                id3v2 -l *.mp3 | gawk -v fn=$Tmp '
+                function ltrim(s) { sub(/^ */, "", s); return s }
+                function rtrim(s) { sub(/ *$/, "", s); return s }
+                function trim(s) { return rtrim(ltrim(s)); }
+                function dq(s) { return "\"" s "\""; }
+                function numb(sz,re) { sub(re,"",sz); return sz; }
+                function last(sz,d,     n) { n=split(sz,a,d); return trim(a[n]); }
+                function lastfixed(sz,d,len,     n) { n=split(sz,a,d); sz=trim(a[n]); return substr(sz,1,len); }
+                BEGIN  { k=0; }
+                /TPE1/ { ARTIST = last($0, ":"); FILENAME = TFILENAME }
+                /TIT2/ { k=1; SONG = lastfixed($0, ":",32); }
+                /TCON/ { k=1; GENRE = lastfixed($0, ":",32); }
+                /TALB/ { k=1; DISK = lastfixed($0, ":",32); }
+                /TRCK/ { k=1; TRK = lastfixed($0, ":",32); }
+                /id3v2 tag info for / { sz=$0; sz=numb(sz,"id3v2 tag info for "); sz=numb(sz,"[:]$"); TFILENAME = trim(sz); }
+                /^id3v2/ { 
+                          if (k>0) {
+                               if (DISK == "Rock") {
+                                    printf("id3v2 -1 -A \"%s Songs\" \"%s\"\n", ARTIST, FILENAME) >> fn;
+                                    printf("id3v2 -2 -A \"%s Songs\" \"%s\"\n", ARTIST, FILENAME) >> fn;
+                                    # printf("%s  %s  %s\n",DISK,ARTIST,FILENAME);
+                               }
+                          }
+                }
+                END { }
+                '
+                cp $Tmp /tmp/zed
+                cat $Tmp 
+                chmod 777 $Tmp
+                $Tmp
+           fi
+           if [ $OPTARG = "list" ] ; then 
+                rm -rf $Tmp
+                touch $Tmp
+                id3v2 -l *.mp3 | gawk -v fn=$Tmp '
+                function ltrim(s) { sub(/^ */, "", s); return s }
+                function rtrim(s) { sub(/ *$/, "", s); return s }
+                function trim(s) { return rtrim(ltrim(s)); }
+                function dq(s) { return "\"" s "\""; }
+                function numb(sz,re) { sub(re,"",sz); return sz; }
+                function last(sz,d,     n) { n=split(sz,a,d); return trim(a[n]); }
+                function lastfixed(sz,d,len,     n) { n=split(sz,a,d); sz=trim(a[n]); return substr(sz,1,len); }
+                BEGIN  { k=0; printf("%-3s %-33s%-33s%-33s%-20s%-20s\n","#","ARTIST","DISK","SONG","GENRE","FILENAME"); }
+                /TPE1/ { ARTIST = last($0, ":"); FILENAME = TFILENAME }
+                /TIT2/ { k=1; SONG = lastfixed($0, ":",32); }
+                /TCON/ { k=1; GENRE = lastfixed($0, ":",32); }
+                /TALB/ { k=1; DISK = lastfixed($0, ":",32); }
+                /TRCK/ { k=1; TRK = lastfixed($0, ":",32); }
+                /id3v2 tag info for / { sz=$0; sz=numb(sz,"id3v2 tag info for "); sz=numb(sz,"[:]$"); TFILENAME = trim(sz); }
+                /^id3v2/ { if (k>0) printf("%-33s%-33s%33s%-20s%-20s\n",ARTIST,DISK,SONG,GENRE,FILENAME) >> fn; }
+                END { printf("%-33s%-33s%-33s%-20s%-20s\n",ARTIST,DISK,SONG,GENRE,FILENAME) >> fn; }
+                '
+                cat $Tmp | sort | gawk '{printf("%-03s %s\n",NR, $0);}'
+           fi
+           if [ $OPTARG = "nim1" ] ; then 
+                rm -rf $Tmp
+                touch $Tmp
+                find . -maxdepth 5 -name "*.mp3" -type f -print  | sed "s#^.#$(pwd)#" | awk '{printf("\"%s\"\n",$0)}' | gawk -v fn=$Tmp '
+                function dq(s) { return "\"" s "\""; }
+                function ltrim(s) { sub(/^ */, "", s); return s }
+                function rtrim(s) { sub(/ *$/, "", s); return s }
+                function trim(s) { return rtrim(ltrim(s)); }
+                { 
+                     n=split($0,a,"/");
+                     sz = a[n];
+                     sub(/["]/, "", sz);
+                     sub(/["]/, "", sz);
+                     sz="1" trim(sz);
+                     print "mv " $0  "     "  dq(sz) >> fn 
+                }'
+                cp $Tmp /tmp/zed
+                chmod 777 $Tmp
+                $Tmp
+           fi
+           if [ $OPTARG = "nim2" ] ; then 
+                rm -rf $Tmp
+                touch $Tmp
+                find . -maxdepth 5 -name "*.mp3" -type f -print  | sed "s#^.#$(pwd)#" | awk '{printf("\"%s\"\n",$0)}' | gawk -v fn=$Tmp '
+                function dq(s) { return "\"" s "\""; }
+                function ltrim(s) { sub(/^ */, "", s); return s }
+                function rtrim(s) { sub(/ *$/, "", s); return s }
+                function trim(s) { return rtrim(ltrim(s)); }
+                { 
+                     n=split($0,a,"/");
+                     sz = a[n];
+                     sub(/["]/, "", sz);
+                     sub(/["]/, "", sz);
+                     sz="2" trim(sz);
+                     print "mv " $0  "     "  dq(sz) >> fn 
+                }'
+                cp $Tmp /tmp/zed
+                chmod 777 $Tmp
+                $Tmp
+           fi
+           if [ $OPTARG = "nim3" ] ; then 
+                rm -rf $Tmp
+                touch $Tmp
+                find . -maxdepth 5 -name "*.mp3" -type f -print  | sed "s#^.#$(pwd)#" | awk '{printf("\"%s\"\n",$0)}' | gawk -v fn=$Tmp '
+                function dq(s) { return "\"" s "\""; }
+                function ltrim(s) { sub(/^ */, "", s); return s }
+                function rtrim(s) { sub(/ *$/, "", s); return s }
+                function trim(s) { return rtrim(ltrim(s)); }
+                { 
+                     n=split($0,a,"/");
+                     sz = a[n];
+                     sub(/["]/, "", sz);
+                     sub(/["]/, "", sz);
+                     sz="3" trim(sz);
+                     print "mv " $0  "     "  dq(sz) >> fn 
+                }'
+                cp $Tmp /tmp/zed
+                chmod 777 $Tmp
+                $Tmp
+           fi
+           if [ $OPTARG = "copy" ] ; then 
+                rm -rf $Tmp
+                touch $Tmp
+                find . -maxdepth 5 -name "*.mp3" -type f -print  | sed "s#^.#$(pwd)#" | awk '{printf("\"%s\"\n",$0)}' | gawk -v fn=$Tmp '
+                function ltrim(s) { sub(/^ */, "", s); return s }
+                function rtrim(s) { sub(/ *$/, "", s); return s }
+                function trim(s) { return rtrim(ltrim(s)); }
+                function dq(s) { return "\"" s "\""; }
+                BEGIN { print "mkdir ./XXX"  >> fn }
+                {
+                     print "cp " $0 " ./XXX"  >> fn 
+                }'
+                chmod 777 $Tmp
+                $Tmp
+           fi
+           if [ $OPTARG = "minusone" ] ; then 
+                rm -rf $Tmp
+                find . -maxdepth 1 -name "*.mp3" -type f -print  | sed "s#^.#$(pwd)#" | awk '{printf("\"%s\"\n",$0)}' | gawk -v fn=$Tmp '
+                function ltrim(s) { sub(/^ */, "", s); return s }
+                function rtrim(s) { sub(/ *$/, "", s); return s }
+                function trim(s) { return rtrim(ltrim(s)); }
+                function dq(s) { return "\"" s "\""; }
+                {
+                     q = "\"";
+                     gsub(/["]/,"", $0)
+                     n=split($0,a,"/");
+                     sz = a[n];
+                     sub(/^./,"", sz)
+                     sz=trim(sz);
+                     sub(/^[-]/,"", sz)
+                     sub(/^[-]/,"", sz)
+                     sub(/^[-]/,"", sz)
+                     sub(/^[-]/,"", sz)
+                     sz=trim(sz);
+                     print "mv " dq($0) " " dq(sz) >> fn 
+                }'
+                cp $Tmp /tmp/zed
+                chmod 777 $Tmp
+                $Tmp
+                ls
+           fi
+               if [ $OPTARG = "minusfour" ] ; then 
+                    rm -rf $Tmp
+                    find . -maxdepth 1 -name "*.mp3" -type f -print  | sed "s#^.#$(pwd)#" | awk '{printf("\"%s\"\n",$0)}' | gawk -v fn=$Tmp '
+                    function ltrim(s) { sub(/^ */, "", s); return s }
+                    function rtrim(s) { sub(/ *$/, "", s); return s }
+                    function trim(s) { return rtrim(ltrim(s)); }
+                    function dq(s) { return "\"" s "\""; }
+                    {
+                         q = "\"";
+                         gsub(/["]/,"", $0)
+                         n=split($0,a,"/");
+                         sz = a[n];
+                         sub(/^..../,"", sz)
+                         sz=trim(sz);
+                         print "mv " dq($0) " " dq(sz) >> fn 
+                    }'
+                    cp $Tmp /tmp/zed
+                    chmod 777 $Tmp
+                    $Tmp
+               fi
+               if [ $OPTARG = "minusfive" ] ; then 
+                    rm -rf $Tmp
+                    find . -maxdepth 1 -name "*.mp3" -type f -print  | sed "s#^.#$(pwd)#" | awk '{printf("\"%s\"\n",$0)}' | gawk -v fn=$Tmp '
+                    function ltrim(s) { sub(/^ */, "", s); return s }
+                    function rtrim(s) { sub(/ *$/, "", s); return s }
+                    function trim(s) { return rtrim(ltrim(s)); }
+                    function dq(s) { return "\"" s "\""; }
+                    {
+                         q = "\"";
+                         gsub(/["]/,"", $0)
+                         n=split($0,a,"/");
+                         sz = a[n];
+                         sub(/^...../,"", sz)
+                         sz=trim(sz);
+                         print "mv " dq($0) " " dq(sz) >> fn 
+                    }'
+                    cp $Tmp /tmp/zed
+                    chmod 777 $Tmp
+                    $Tmp
+               fi
+               if [ $OPTARG = "minustospace" ] ; then 
+                    rm -rf $Tmp
+                    find . -maxdepth 1 -name "*.mp3" -type f -print  | sed "s#^.#$(pwd)#" | awk '{printf("\"%s\"\n",$0)}' | gawk -v fn=$Tmp '
+                    function ltrim(s) { sub(/^ */, "", s); return s }
+                    function rtrim(s) { sub(/ *$/, "", s); return s }
+                    function trim(s) { return rtrim(ltrim(s)); }
+                    function dq(s) { return "\"" s "\""; }
+                    {
+                         q = "\"";
+                         gsub(/["]/,"", $0)
+                         n=split($0,a,"/");
+                         sz = a[n];
+                         # sub(/^[^ ]*[ ]/,"", sz)
+                         sz=trim(sz);
+                         sub(/^[0-9]+/,"", sz)
+                         sz=trim(sz);
+                         sub(/^[ ]+/,"", sz)
+                         sz=trim(sz);
+                         sub(/^[.]+/,"", sz)
+                         sz=trim(sz);
+                         sub(/^[-]+/,"", sz)
+                         sz=trim(sz);
+                         sub(/^[_]+/,"", sz)
+                         sz=trim(sz);
+                         sub(/^[:]+/,"", sz)
+                         #sz=trim(sz);
+                         print "mv " dq($0) " " dq(sz) >> fn 
+                    }'
+                    cat $Tmp 
+                    chmod 777 $Tmp
+                    $Tmp
+               fi
+               ;;
+        x)
+               rm -rf $Tmp
+               find . -name "*.mp3" -type f -print | sed "s#^.#$(pwd)#" | awk '{printf("\"%s\"\n",$0)}' | gawk -v rx=$OPTARG -v fn=$Tmp '
+               function ltrim(s) { sub(/^ */, "", s); return s }
+               function rtrim(s) { sub(/ *$/, "", s); return s }
+               function trim(s) { return rtrim(ltrim(s)); }
+               {
+                    sz=$0;
+                    sub(/^["]/,"", sz); sub(/["]$/,"", sz);
+                    n=split(sz,a,"/"); filename = a[n];
+                    sz = ""
+                    for (i=1;i<n;i++) sz = sz a[i] "/";
+                    filenameroot = sz
+                    print "RX ]" rx "["
+                    if (filename ~ rx) {
+                         sz = filename
+                         sub(rx,"", sz)
+                         filenamenew = filenameroot sz
+                         print ">>" filenamenew
+                    } 
+               }'
+          ;;
+	h) Usage; 
+           exit 0;
+           ;;
+        o) ONE_UP="$OPTARG";
+           ;;     # One_Up Number
+        q) PRNT="$OPTARG";
+           ;;       # q Print queue 'FTP' for now
+        *) exit 0; 
+           ;;                     # display usage and exit
+     esac
+   done
+
